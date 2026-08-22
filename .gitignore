@@ -1,0 +1,30 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+MemoryCaptures/
+Recordings/
+
+# IDE and generated project files
+.vs/
+.vscode/
+*.csproj
+*.sln
+*.slnx
+*.unityproj
+*.pidb
+*.user
+*.userprefs
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS and tool artifacts
+.DS_Store
+Assets/AssetStoreTools*
+Temp/pipeline-screenshots/
