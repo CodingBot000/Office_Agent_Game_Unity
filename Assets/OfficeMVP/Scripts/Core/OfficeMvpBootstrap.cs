@@ -255,6 +255,7 @@ public sealed class OfficeMvpBootstrap : MonoBehaviour
     {
         var uiObject = new GameObject("InteractionUI");
         uiObject.AddComponent<OfficeInteractionUI>();
+        uiObject.AddComponent<OfficePlayerActionUI>();
         uiObject.AddComponent<OfficeInventoryUI>();
         uiObject.AddComponent<OfficeBackendHealthUI>();
     }
