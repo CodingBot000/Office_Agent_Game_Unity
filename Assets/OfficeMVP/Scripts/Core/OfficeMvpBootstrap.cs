@@ -35,7 +35,7 @@ public sealed class OfficeMvpBootstrap : MonoBehaviour
 
     [Header("Backend Connection")]
     [SerializeField] private string localBackendUrl = "http://127.0.0.1:8000";
-    [SerializeField] private string remoteBackendUrl = "";
+    [SerializeField] private string remoteBackendUrl = "https://api.heartsignal.cloud/office-agent-backend";
 
     private void Awake()
     {

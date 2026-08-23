@@ -194,6 +194,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
         var actionScroll = CreateActionScrollView(actionPanel.transform, "ActionScroll", new Vector2(0f, 20f), new Vector2(760f, 300f), out actionContent);
         actionStatus = CreateText(actionPanel.transform, "ActionStatus", "", 16, new Color(0.72f, 0.80f, 0.90f), TextAnchor.MiddleLeft, new Vector2(760f, 50f), new Vector2(-20f, -160f));
+        actionStatus.supportRichText = true;
     }
 
     private void UpdateTargetMenu()
@@ -910,7 +911,6 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         text.text = value;
         text.fontSize = fontSize;
         text.color = color;
-        text.supportRichText = true;
         text.alignment = alignment;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
@@ -948,6 +948,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         button.colors = colors;
 
         var text = CreateText(buttonObject.transform, "Label", label, 17, Color.white, TextAnchor.MiddleCenter, size - new Vector2(10f, 6f), Vector2.zero);
+        text.supportRichText = true;
         text.raycastTarget = false;
         return button;
     }

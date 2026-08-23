@@ -59,6 +59,8 @@ public sealed class OfficeBackendConnectionUI : MonoBehaviour
 
         localStatus.text = FormatEndpointStatus("LOCAL", backend.LocalBaseUrl, localConfigured ? localHealth : OfficeBackendHealthStatus.Disconnected, backend.GetEndpointLatency(OfficeBackendEndpoint.Local), localConfigured);
         remoteStatus.text = FormatEndpointStatus("REMOTE", backend.RemoteBaseUrl, remoteConfigured ? remoteHealth : OfficeBackendHealthStatus.Disconnected, backend.GetEndpointLatency(OfficeBackendEndpoint.Remote), remoteConfigured);
+        localStatus.fontSize = 14;
+        remoteStatus.fontSize = 12;
         localStatus.color = HealthColor(localConfigured ? localHealth : OfficeBackendHealthStatus.Disconnected);
         remoteStatus.color = HealthColor(remoteConfigured ? remoteHealth : OfficeBackendHealthStatus.Disconnected);
         localButton.interactable = localConfigured && localHealth == OfficeBackendHealthStatus.Connected;
@@ -96,7 +98,8 @@ public sealed class OfficeBackendConnectionUI : MonoBehaviour
         var state = status == OfficeBackendHealthStatus.Checking
             ? "CHECKING..."
             : status == OfficeBackendHealthStatus.Connected ? $"ONLINE · {latency}ms" : "OFFLINE";
-        return $"{label}\n{state}\n{url}";
+        var displayUrl = url.Replace("https://", "").Replace("http://", "");
+        return $"{label}\n{state}\n{displayUrl}";
     }
 
     private Color HealthColor(OfficeBackendHealthStatus status)

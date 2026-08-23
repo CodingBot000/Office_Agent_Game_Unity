@@ -148,7 +148,7 @@ public sealed class OfficeBackendClient : MonoBehaviour
 
     [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
     [SerializeField] private string localBaseUrl = "http://127.0.0.1:8000";
-    [SerializeField] private string remoteBaseUrl = "";
+    [SerializeField] private string remoteBaseUrl = "https://api.heartsignal.cloud/office-agent-backend";
     [SerializeField] private bool autoStartSession = true;
 
     public string SessionId { get; private set; }
@@ -205,7 +205,10 @@ public sealed class OfficeBackendClient : MonoBehaviour
             localBaseUrl = localUrl.Trim().TrimEnd('/');
         }
 
-        remoteBaseUrl = string.IsNullOrWhiteSpace(remoteUrl) ? "" : remoteUrl.Trim().TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(remoteUrl))
+        {
+            remoteBaseUrl = remoteUrl.Trim().TrimEnd('/');
+        }
         if (selectedEndpoint == null)
         {
             baseUrl = localBaseUrl;
