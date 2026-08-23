@@ -57,8 +57,8 @@ public sealed class OfficeBackendConnectionUI : MonoBehaviour
         var localHealth = backend.GetEndpointHealth(OfficeBackendEndpoint.Local);
         var remoteHealth = backend.GetEndpointHealth(OfficeBackendEndpoint.Remote);
 
-        localStatus.text = FormatEndpointStatus("LOCAL", backend.LocalBaseUrl, localConfigured ? localHealth : OfficeBackendHealthStatus.Disconnected, backend.GetEndpointLatency(OfficeBackendEndpoint.Local), localConfigured);
-        remoteStatus.text = FormatEndpointStatus("REMOTE", backend.RemoteBaseUrl, remoteConfigured ? remoteHealth : OfficeBackendHealthStatus.Disconnected, backend.GetEndpointLatency(OfficeBackendEndpoint.Remote), remoteConfigured);
+        localStatus.text = FormatEndpointStatus("LOCAL", localConfigured ? localHealth : OfficeBackendHealthStatus.Disconnected, backend.GetEndpointLatency(OfficeBackendEndpoint.Local), localConfigured);
+        remoteStatus.text = FormatEndpointStatus("REMOTE", remoteConfigured ? remoteHealth : OfficeBackendHealthStatus.Disconnected, backend.GetEndpointLatency(OfficeBackendEndpoint.Remote), remoteConfigured);
         localStatus.fontSize = 14;
         remoteStatus.fontSize = 12;
         localStatus.color = HealthColor(localConfigured ? localHealth : OfficeBackendHealthStatus.Disconnected);
@@ -74,7 +74,7 @@ public sealed class OfficeBackendConnectionUI : MonoBehaviour
 
         selectionStatus.text = remoteConfigured
             ? "연결할 백엔드를 선택하세요. 두 서버의 상태를 확인한 뒤 활성화된 버튼만 선택할 수 있습니다."
-            : "로컬 서버와 원격 서버 상태를 확인 중입니다. 원격 URL은 OfficeMvpBootstrap에서 설정할 수 있습니다.";
+            : "로컬 서버와 원격 서버 상태를 확인 중입니다.";
     }
 
     private void SelectEndpoint(OfficeBackendEndpoint endpoint)
@@ -88,18 +88,17 @@ public sealed class OfficeBackendConnectionUI : MonoBehaviour
         panel.SetActive(false);
     }
 
-    private string FormatEndpointStatus(string label, string url, OfficeBackendHealthStatus status, long latency, bool configured)
+    private string FormatEndpointStatus(string label, OfficeBackendHealthStatus status, long latency, bool configured)
     {
         if (!configured)
         {
-            return $"{label}\nURL 미설정";
+            return $"{label}\n미설정";
         }
 
         var state = status == OfficeBackendHealthStatus.Checking
             ? "CHECKING..."
             : status == OfficeBackendHealthStatus.Connected ? $"ONLINE · {latency}ms" : "OFFLINE";
-        var displayUrl = url.Replace("https://", "").Replace("http://", "");
-        return $"{label}\n{state}\n{displayUrl}";
+        return $"{label}\n{state}";
     }
 
     private Color HealthColor(OfficeBackendHealthStatus status)
@@ -155,7 +154,6 @@ public sealed class OfficeBackendConnectionUI : MonoBehaviour
         remoteStatus = remoteButton.GetComponentInChildren<Text>();
 
         selectionStatus = CreateText(panel.transform, "두 서버의 /health 상태를 확인하는 중...", 14, new Color(0.62f, 0.72f, 0.82f), TextAnchor.MiddleCenter, new Vector2(900f, 52f), new Vector2(0f, -180f));
-        CreateText(panel.transform, "LOCAL: 127.0.0.1:8000  ·  REMOTE: OfficeMvpBootstrap 설정값", 11, new Color(0.38f, 0.48f, 0.58f), TextAnchor.MiddleCenter, new Vector2(900f, 26f), new Vector2(0f, -225f));
     }
 
     private GameObject CreatePanel(Transform parent, Vector2 size, Color color)
