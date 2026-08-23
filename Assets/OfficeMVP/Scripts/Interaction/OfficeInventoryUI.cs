@@ -312,9 +312,10 @@ public sealed class OfficeInventoryUI : MonoBehaviour
         var heldCount = snapshot.player_inventory == null || snapshot.player_inventory.held_object_ids == null
             ? 0
             : snapshot.player_inventory.held_object_ids.Length;
+        var isUnlimited = snapshot.player_inventory != null && snapshot.player_inventory.unlimited;
         var maxHeld = snapshot.player_inventory == null ? 1 : snapshot.player_inventory.max_held_objects;
 
-        AddSectionHeader($"플레이어 보유 ({heldCount}/{maxHeld})");
+        AddSectionHeader(isUnlimited ? $"플레이어 보유 ({heldCount}/∞)" : $"플레이어 보유 ({heldCount}/{maxHeld})");
         if (heldCount == 0)
         {
             AddRow("현재 들고 있는 물건이 없습니다.", new Color(0.65f, 0.68f, 0.76f), 82f);
@@ -325,7 +326,7 @@ public sealed class OfficeInventoryUI : MonoBehaviour
             {
                 var state = FindObject(objects, objectId);
                 var itemName = state == null ? objectId : state.name;
-                AddRow($"물품: {itemName}\n현재 소지자: 플레이어", Color.white, 82f);
+                AddRow($"물품: {OfficeDisplayText.FormatItemNameRich(itemName)}\n현재 소지자: 플레이어", Color.white, 82f);
             }
         }
 
@@ -355,7 +356,7 @@ public sealed class OfficeInventoryUI : MonoBehaviour
 
             var condition = ResolveCondition(state.condition);
             var location = ResolveLocation(state.location);
-            AddRow($"소유자: {ownerName}\n물품: {state.name}\n위치: {location}  |  상태: {condition}\n현재 소지자: {holderName}", Color.white, 82f);
+            AddRow($"소유자: {ownerName}\n물품: {OfficeDisplayText.FormatItemNameRich(state.name)}\n위치: {location}  |  상태: {condition}\n현재 소지자: {holderName}", Color.white, 82f);
         }
     }
 
@@ -532,6 +533,7 @@ public sealed class OfficeInventoryUI : MonoBehaviour
         text.text = value;
         text.fontSize = fontSize;
         text.color = color;
+        text.supportRichText = true;
         text.alignment = alignment;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;

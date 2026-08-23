@@ -11,8 +11,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
     private OfficeNpcFallView[] npcFallViews;
     private OfficeNpcFearShake[] npcFearShakes;
     private Transform playerTransform;
-    private GameObject carriedVisual;
-    private string carriedObjectId;
+    private readonly Dictionary<string, GameObject> carriedVisuals = new Dictionary<string, GameObject>();
     private readonly Dictionary<string, string> previousConditions = new Dictionary<string, string>();
 
     private void Start()
@@ -151,60 +150,81 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
 
     private void UpdateCarriedVisual(Dictionary<string, OfficeWorldObjectDto> states)
     {
-        OfficeWorldObjectDto carriedState = null;
+        if (playerTransform == null)
+        {
+            DestroyCarriedVisual();
+            return;
+        }
+
+        var activeObjectIds = new HashSet<string>();
+        var carriedIndex = 0;
         foreach (var state in states.Values)
         {
-            if (state != null
-                && string.Equals(state.holder_id, "player", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(state.condition, "destroyed", StringComparison.OrdinalIgnoreCase))
+            if (state == null
+                || !string.Equals(state.holder_id, "player", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(state.condition, "destroyed", StringComparison.OrdinalIgnoreCase))
             {
-                carriedState = state;
-                break;
+                continue;
             }
-        }
 
-        if (carriedState == null || playerTransform == null)
-        {
-            DestroyCarriedVisual();
-            return;
-        }
+            activeObjectIds.Add(state.id);
+            var sourceView = FindView(state.id);
+            var sprite = sourceView == null ? OfficeItemSpriteCatalog.Load(state.id) : sourceView.Sprite;
+            if (sprite == null)
+            {
+                continue;
+            }
 
-        var sourceView = FindView(carriedState.id);
-        if (sourceView == null || sourceView.Sprite == null)
-        {
-            DestroyCarriedVisual();
-            return;
-        }
+            if (!carriedVisuals.TryGetValue(state.id, out var carriedVisual) || carriedVisual == null)
+            {
+                carriedVisual = new GameObject($"HeldObject_{state.id}");
+                carriedVisuals[state.id] = carriedVisual;
+                carriedVisual.AddComponent<SpriteRenderer>();
+            }
 
-        if (carriedVisual == null || carriedObjectId != carriedState.id)
-        {
-            DestroyCarriedVisual();
-
-            carriedVisual = new GameObject($"HeldObject_{carriedState.id}");
-            carriedObjectId = carriedState.id;
-            var renderer = carriedVisual.AddComponent<SpriteRenderer>();
-            renderer.sprite = sourceView.Sprite;
+            var renderer = carriedVisual.GetComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
             renderer.sortingOrder = 60;
             carriedVisual.transform.SetParent(playerTransform, false);
-            carriedVisual.transform.localPosition = new Vector3(0.22f, 0.34f, -0.35f);
+            carriedVisual.transform.localPosition = new Vector3(
+                0.22f + 0.16f * carriedIndex,
+                0.34f + 0.08f * carriedIndex,
+                -0.35f - 0.02f * carriedIndex
+            );
             carriedVisual.transform.localRotation = Quaternion.identity;
 
-            var heldScale = sourceView.transform.localScale * 0.72f;
+            var heldScale = sourceView == null ? Vector3.one * 0.55f : sourceView.transform.localScale * 0.72f;
+            if (OfficeItemSpriteCatalog.IsPersonItem(state.id))
+            {
+                heldScale *= 0.55f;
+            }
+
             carriedVisual.transform.localScale = new Vector3(
                 heldScale.x * 0.5f,
                 heldScale.y,
                 heldScale.z
             );
 
-            Debug.Log($"[OfficeMVP] Carried object displayed at player hand: {carriedState.id}");
+            carriedIndex++;
+            Debug.Log($"[OfficeMVP] Carried object displayed at player hand: {state.id}");
         }
-        else
+
+        var staleObjectIds = new List<string>();
+        foreach (var pair in carriedVisuals)
         {
-            var renderer = carriedVisual.GetComponent<SpriteRenderer>();
-            if (renderer != null)
+            if (!activeObjectIds.Contains(pair.Key))
             {
-                renderer.sprite = sourceView.Sprite;
+                if (pair.Value != null)
+                {
+                    Destroy(pair.Value);
+                }
+                staleObjectIds.Add(pair.Key);
             }
+        }
+
+        foreach (var objectId in staleObjectIds)
+        {
+            carriedVisuals.Remove(objectId);
         }
     }
 
@@ -300,7 +320,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
 
     private Vector3 GetCurrentObjectPosition(string objectId, OfficeWorldObjectView fallback)
     {
-        if (carriedVisual != null && carriedObjectId == objectId)
+        if (carriedVisuals.TryGetValue(objectId, out var carriedVisual) && carriedVisual != null)
         {
             return carriedVisual.transform.position;
         }
@@ -310,7 +330,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
 
     private Vector3 GetCurrentObjectScale(string objectId, OfficeWorldObjectView fallback)
     {
-        if (carriedVisual != null && carriedObjectId == objectId)
+        if (carriedVisuals.TryGetValue(objectId, out var carriedVisual) && carriedVisual != null)
         {
             return carriedVisual.transform.lossyScale;
         }
@@ -320,12 +340,14 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
 
     private void DestroyCarriedVisual()
     {
-        if (carriedVisual != null)
+        foreach (var carriedVisual in carriedVisuals.Values)
         {
-            Destroy(carriedVisual);
-            carriedVisual = null;
+            if (carriedVisual != null)
+            {
+                Destroy(carriedVisual);
+            }
         }
 
-        carriedObjectId = null;
+        carriedVisuals.Clear();
     }
 }

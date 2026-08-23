@@ -12,6 +12,8 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
         public Vector3 launchScale;
         public Transform targetTransform;
         public OfficeNpcFallView fallView;
+        public bool shouldFall;
+        public string impactEffect;
     }
 
     public static OfficeThrowCoordinator Instance { get; private set; }
@@ -75,6 +77,8 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
             launchScale = heldObject.transform.lossyScale,
             targetTransform = targetPoint.transform,
             fallView = targetPoint.GetComponent<OfficeNpcFallView>(),
+            shouldFall = IsPhysicalAssault(action.object_id),
+            impactEffect = ResolveImpactEffect(action.object_id),
         };
         return true;
     }
@@ -103,11 +107,15 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
             pendingThrow.launchPosition,
             pendingThrow.launchScale,
             pendingThrow.targetTransform,
+            pendingThrow.impactEffect,
             () =>
             {
                 if (pendingThrow != null && pendingThrow.actionId == action.id)
                 {
-                    pendingThrow.fallView?.SetFallen(true);
+                    if (pendingThrow.shouldFall)
+                    {
+                        pendingThrow.fallView?.SetFallen(true);
+                    }
                     pendingThrow = null;
                 }
             }
@@ -120,5 +128,35 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
         {
             pendingThrow = null;
         }
+    }
+
+    private bool IsPhysicalAssault(string objectId)
+    {
+        var state = FindWorldObject(objectId);
+        return state == null || string.Equals(state.throw_effect, "physical_assault", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string ResolveImpactEffect(string objectId)
+    {
+        var state = FindWorldObject(objectId);
+        return state == null || string.IsNullOrEmpty(state.throw_impact) ? "split" : state.throw_impact;
+    }
+
+    private OfficeWorldObjectDto FindWorldObject(string objectId)
+    {
+        if (OfficeBackendClient.Instance?.CurrentSnapshot?.world_objects == null || string.IsNullOrEmpty(objectId))
+        {
+            return null;
+        }
+
+        foreach (var state in OfficeBackendClient.Instance.CurrentSnapshot.world_objects)
+        {
+            if (state != null && state.id == objectId)
+            {
+                return state;
+            }
+        }
+
+        return null;
     }
 }

@@ -763,16 +763,18 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
     private string BuildActionLabel(OfficeAvailableGameActionDto action, OfficeSnapshotDto snapshot)
     {
-        var label = action.label;
         var state = FindWorldObject(snapshot, action.object_id);
+        var label = state == null
+            ? OfficeDisplayText.EscapeRichText(action.label)
+            : OfficeDisplayText.FormatActionLabel(action.label, state.name);
         if (state != null)
         {
-            label += $"\n물건 상태: {state.name} · {ResolveObjectCondition(state.condition)}";
+            label += $"\n물건 상태: {OfficeDisplayText.FormatItemNameRich(state.name)} · {ResolveObjectCondition(state.condition)}";
         }
 
         if (!action.enabled && !string.IsNullOrEmpty(action.disabled_reason))
         {
-            label += $"\n{action.disabled_reason}";
+            label += $"\n{OfficeDisplayText.EscapeRichText(action.disabled_reason)}";
         }
 
         return label;
@@ -829,14 +831,23 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         var isThrow = string.Equals(action.family, "throw_held_object", StringComparison.OrdinalIgnoreCase);
         var throwPrepared = isThrow && throwCoordinator != null && throwCoordinator.PrepareThrow(action);
 
-        actionStatus.text = $"{action.label} 처리 중...";
+        var actionObject = FindWorldObject(backend.CurrentSnapshot, action.object_id);
+        actionStatus.text = actionObject == null
+            ? $"{OfficeDisplayText.EscapeRichText(action.label)} 처리 중..."
+            : $"{OfficeDisplayText.FormatActionLabel(action.label, actionObject.name)} 처리 중...";
         backend.SubmitGameAction(
             action.id,
             response =>
             {
-                var message = string.IsNullOrEmpty(response.message) ? "(응답 없음)" : response.message;
+                var responseObjects = response.snapshot == null
+                    ? backend.CurrentSnapshot == null ? null : backend.CurrentSnapshot.world_objects
+                    : response.snapshot.world_objects;
+                var message = string.IsNullOrEmpty(response.message)
+                    ? "(응답 없음)"
+                    : OfficeDisplayText.FormatKnownItemNames(response.message, responseObjects);
+                var alert = OfficeDisplayText.FormatKnownItemNames(response.alert, responseObjects);
                 actionStatus.text = response.blocked
-                    ? $"차단됨: {message} {response.alert}"
+                    ? $"차단됨: {message} {alert}"
                     : $"결과: {message}";
 
                 if (throwPrepared)
@@ -899,6 +910,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         text.text = value;
         text.fontSize = fontSize;
         text.color = color;
+        text.supportRichText = true;
         text.alignment = alignment;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;

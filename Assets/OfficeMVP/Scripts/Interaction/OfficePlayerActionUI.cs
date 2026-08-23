@@ -17,6 +17,7 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
     private Canvas canvas;
     private OfficeBackendClient backend;
     private Transform player;
+    private SpriteRenderer playerRenderer;
     private RectTransform actionAnchor;
     private Button actionButton;
     private GameObject menuPanel;
@@ -25,11 +26,13 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
     private Transform menuContent;
     private string selectedObjectId;
     private MenuStep step;
+    private bool playerAnchorVisible;
 
     private void Start()
     {
         backend = OfficeBackendClient.Instance;
         player = GameObject.Find("Player")?.transform;
+        playerRenderer = player == null ? null : player.GetComponent<SpriteRenderer>();
 
         EnsureEventSystem();
         BuildUi();
@@ -54,6 +57,7 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
         if (player == null)
         {
             player = GameObject.Find("Player")?.transform;
+            playerRenderer = player == null ? null : player.GetComponent<SpriteRenderer>();
         }
 
         UpdateActionAnchor();
@@ -127,13 +131,24 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
             return;
         }
 
-        var screenPosition = camera.WorldToScreenPoint(player.position + new Vector3(0f, 1.28f, 0f));
+        var anchorWorldPosition = player.position + new Vector3(0f, 2.8f, 0f);
+        if (playerRenderer != null && playerRenderer.sprite != null)
+        {
+            anchorWorldPosition = new Vector3(
+                playerRenderer.bounds.center.x,
+                playerRenderer.bounds.max.y + 0.55f,
+                player.position.z
+            );
+        }
+
+        var screenPosition = camera.WorldToScreenPoint(anchorWorldPosition);
         var visible = screenPosition.z > 0f
             && screenPosition.x >= 0f
             && screenPosition.x <= Screen.width
             && screenPosition.y >= 0f
             && screenPosition.y <= Screen.height;
 
+        playerAnchorVisible = visible;
         if (!visible)
         {
             actionAnchor.gameObject.SetActive(false);
@@ -157,7 +172,7 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
         }
 
         var isOverlayOpen = IsPanelOpen("DialoguePanel") || IsPanelOpen("ActionPanel");
-        var canOpen = HasHeldThrowActions() && !isOverlayOpen;
+        var canOpen = playerAnchorVisible && HasHeldThrowActions() && !isOverlayOpen;
         if (actionAnchor.gameObject.activeSelf != canOpen)
         {
             actionAnchor.gameObject.SetActive(canOpen);
@@ -268,7 +283,9 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
             foreach (var objectId in objectIds)
             {
                 var objectState = FindWorldObject(objectId);
-                var label = objectState == null ? objectId : objectState.name;
+                var label = objectState == null
+                    ? OfficeDisplayText.FormatItemNameRich(objectId)
+                    : OfficeDisplayText.FormatItemNameRich(objectState.name);
                 var button = CreateButton(menuContent, $"ThrowObject_{objectId}", $"{label} 던지기", new Vector2(500f, 54f), Vector2.zero);
                 var capturedObjectId = objectId;
                 button.onClick.AddListener(() => OpenTargetStep(capturedObjectId));
@@ -279,7 +296,9 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
         if (step == MenuStep.SelectTarget)
         {
             var objectState = FindWorldObject(selectedObjectId);
-            var objectName = objectState == null ? selectedObjectId : objectState.name;
+            var objectName = objectState == null
+                ? OfficeDisplayText.FormatItemNameRich(selectedObjectId)
+                : OfficeDisplayText.FormatItemNameRich(objectState.name);
             menuTitle.text = $"{objectName} 대상 선택";
             menuStatus.text = "대상을 선택하면 서버 검증 후 투척합니다.";
 
@@ -318,16 +337,23 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
 
         var coordinator = OfficeThrowCoordinator.Instance;
         var prepared = coordinator != null && coordinator.PrepareThrow(action);
-        menuStatus.text = $"{action.label} 처리 중...";
+        var actionObject = FindWorldObject(action.object_id);
+        menuStatus.text = actionObject == null
+            ? $"{OfficeDisplayText.EscapeRichText(action.label)} 처리 중..."
+            : $"{OfficeDisplayText.FormatActionLabel(action.label, actionObject.name)} 처리 중...";
 
         backend.SubmitGameAction(
             action.id,
             response =>
             {
+                var responseObjects = response.snapshot == null
+                    ? backend.CurrentSnapshot == null ? null : backend.CurrentSnapshot.world_objects
+                    : response.snapshot.world_objects;
+                var responseMessage = OfficeDisplayText.FormatKnownItemNames(response.message, responseObjects);
                 if (response.blocked)
                 {
                     coordinator?.CancelThrow(action);
-                    menuStatus.text = $"차단됨: {response.message}";
+                    menuStatus.text = $"차단됨: {responseMessage}";
                     RebuildMenu();
                     return;
                 }
@@ -493,6 +519,7 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
         text.text = value;
         text.fontSize = fontSize;
         text.color = color;
+        text.supportRichText = true;
         text.alignment = alignment;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;

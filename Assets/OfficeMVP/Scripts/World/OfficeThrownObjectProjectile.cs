@@ -8,6 +8,7 @@ public sealed class OfficeThrownObjectProjectile : MonoBehaviour
     private Vector3 launchPosition;
     private Vector3 launchScale;
     private Transform targetTransform;
+    private string impactEffect;
     private Action onImpact;
 
     public void Configure(
@@ -15,6 +16,7 @@ public sealed class OfficeThrownObjectProjectile : MonoBehaviour
         Vector3 sourcePosition,
         Vector3 sourceScale,
         Transform target,
+        string impactStyle,
         Action impactCallback
     )
     {
@@ -22,6 +24,7 @@ public sealed class OfficeThrownObjectProjectile : MonoBehaviour
         launchPosition = sourcePosition;
         launchScale = sourceScale;
         targetTransform = target;
+        impactEffect = impactStyle;
         onImpact = impactCallback;
 
         var renderer = gameObject.AddComponent<SpriteRenderer>();
@@ -56,7 +59,15 @@ public sealed class OfficeThrownObjectProjectile : MonoBehaviour
 
     private void Impact()
     {
-        OfficeBreakEffect.Play(sprite, transform.position, transform.localScale, 72);
+        if (string.Equals(impactEffect, "blink", StringComparison.OrdinalIgnoreCase))
+        {
+            OfficeBlinkEffect.Play(sprite, transform.position, transform.localScale, 72);
+        }
+        else
+        {
+            OfficeBreakEffect.Play(sprite, transform.position, transform.localScale, 72);
+        }
+
         onImpact?.Invoke();
         Destroy(gameObject);
     }

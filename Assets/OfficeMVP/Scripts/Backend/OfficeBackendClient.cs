@@ -44,6 +44,9 @@ public sealed class OfficeWorldObjectDto
     public string holder_id;
     public string condition;
     public bool is_dropped;
+    public string throw_effect;
+    public int throw_severity;
+    public string throw_impact;
 }
 
 [Serializable]
@@ -51,6 +54,7 @@ public sealed class OfficePlayerInventoryDto
 {
     public string[] held_object_ids;
     public int max_held_objects;
+    public bool unlimited;
 }
 
 [Serializable]
