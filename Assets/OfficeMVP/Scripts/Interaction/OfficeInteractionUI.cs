@@ -9,6 +9,11 @@ using UnityEngine.UI;
 
 public sealed class OfficeInteractionUI : MonoBehaviour
 {
+    private static OfficeInteractionUI instance;
+
+    public static bool IsDialoguePanelOpen =>
+        instance != null && instance.dialoguePanel != null && instance.dialoguePanel.activeSelf;
+
     private Canvas canvas;
     private PlayerInteractionDetector detector;
     private OfficeBackendClient backend;
@@ -51,6 +56,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
     private void Start()
     {
+        instance = this;
         detector = FindAnyObjectByType<PlayerInteractionDetector>();
         backend = OfficeBackendClient.Instance;
 
@@ -73,6 +79,11 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (instance == this)
+        {
+            instance = null;
+        }
+
         if (backend != null)
         {
             backend.SnapshotUpdated -= OnBackendSnapshotUpdated;

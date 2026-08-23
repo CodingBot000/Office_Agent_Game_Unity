@@ -152,6 +152,12 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
 
     private string ResolveImpactEffect(string objectId)
     {
+        if (string.Equals(objectId, "team_leader_person", System.StringComparison.OrdinalIgnoreCase)
+            || string.Equals(objectId, "division_head_person", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return "blink";
+        }
+
         var state = FindWorldObject(objectId);
         return state == null || string.IsNullOrEmpty(state.throw_impact) ? "split" : state.throw_impact;
     }

@@ -112,6 +112,9 @@ public sealed class OfficeActionResponseDto
     public string intent_provider;
     public float intent_confidence;
     public bool intent_fallback_used;
+    public string question_type;
+    public string reference_scope;
+    public string evidence_id;
     public bool blocked;
     public string alert;
 }

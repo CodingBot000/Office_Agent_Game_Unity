@@ -29,6 +29,12 @@ public sealed class PlayerMovement2D : MonoBehaviour
             return;
         }
 
+        if (OfficeInteractionUI.IsDialoguePanelOpen)
+        {
+            input = Vector2.zero;
+            return;
+        }
+
         if (IsTextInputFocused())
         {
             input = Vector2.zero;
