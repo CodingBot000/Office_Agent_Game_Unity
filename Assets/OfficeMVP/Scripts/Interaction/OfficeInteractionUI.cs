@@ -603,6 +603,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
                     : "응답 수신 완료";
 
                 UpdateDialogueInputAvailability(false);
+                RebuildEvidenceActions(response.snapshot ?? (backend == null ? null : backend.CurrentSnapshot));
                 if (viewedDialogueTargetId == targetId)
                 {
                     RestoreDialogueInputFocus();
@@ -615,6 +616,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
                 AppendDialogueHistory(targetId, $"[오류] {error}\n");
                 dialogueStatus.text = error;
                 UpdateDialogueInputAvailability(false);
+                RebuildEvidenceActions(backend == null ? null : backend.CurrentSnapshot);
 
                 if (viewedDialogueTargetId == targetId)
                 {
