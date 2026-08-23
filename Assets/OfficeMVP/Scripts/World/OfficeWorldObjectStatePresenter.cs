@@ -9,6 +9,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
     private OfficeWorldObjectView[] views;
     private OfficeCharacterEmotionLabel[] emotionLabels;
     private OfficeNpcFallView[] npcFallViews;
+    private OfficeNpcFearShake[] npcFearShakes;
     private Transform playerTransform;
     private GameObject carriedVisual;
     private string carriedObjectId;
@@ -19,6 +20,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
         views = FindObjectsByType<OfficeWorldObjectView>(FindObjectsInactive.Include);
         emotionLabels = FindObjectsByType<OfficeCharacterEmotionLabel>(FindObjectsInactive.Include);
         npcFallViews = FindObjectsByType<OfficeNpcFallView>(FindObjectsInactive.Include);
+        npcFearShakes = FindObjectsByType<OfficeNpcFearShake>(FindObjectsInactive.Include);
         backend = OfficeBackendClient.Instance;
 
         var player = GameObject.Find("Player");
@@ -208,7 +210,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
 
     private void UpdateEmotionLabels(OfficeSnapshotDto snapshot)
     {
-        if (snapshot == null || snapshot.npcs == null || emotionLabels == null)
+        if (snapshot == null || snapshot.npcs == null)
         {
             return;
         }
@@ -226,7 +228,16 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
         {
             if (label != null && emotions.TryGetValue(label.TargetId, out var emotion))
             {
+                label.SetPhysicalState("normal");
                 label.SetEmotion(emotion);
+            }
+        }
+
+        foreach (var shake in npcFearShakes)
+        {
+            if (shake != null && emotions.TryGetValue(shake.GetComponent<InteractablePoint>()?.TargetId, out var emotion))
+            {
+                shake.SetEmotion(emotion);
             }
         }
     }
@@ -243,7 +254,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
         {
             if (npc != null && !string.IsNullOrEmpty(npc.id))
             {
-                fallenById[npc.id] = npc.is_fallen;
+                fallenById[npc.id] = npc.physical_state == "comatose" || npc.is_fallen;
             }
         }
 

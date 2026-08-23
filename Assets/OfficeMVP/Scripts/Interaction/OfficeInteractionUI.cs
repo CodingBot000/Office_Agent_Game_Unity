@@ -30,6 +30,8 @@ public sealed class OfficeInteractionUI : MonoBehaviour
     private InputField dialogueInput;
     private Button dialogueSendButton;
     private ScrollRect dialogueScroll;
+    private RectTransform dialogueContentRect;
+    private Coroutine dialogueScrollRoutine;
     private Transform actionContent;
 
     private readonly Dictionary<string, string> dialogueHistories = new Dictionary<string, string>();
@@ -435,6 +437,11 @@ public sealed class OfficeInteractionUI : MonoBehaviour
     private void CloseDialogue()
     {
         StopDialogueWaitingAnimation();
+        if (dialogueScrollRoutine != null)
+        {
+            StopCoroutine(dialogueScrollRoutine);
+            dialogueScrollRoutine = null;
+        }
         dialoguePanel.SetActive(false);
         if (currentTarget != null)
         {
@@ -966,6 +973,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         var content = new GameObject("Content");
         content.transform.SetParent(viewport.transform, false);
         var contentRect = content.AddComponent<RectTransform>();
+        dialogueContentRect = contentRect;
         contentRect.anchorMin = new Vector2(0f, 1f);
         contentRect.anchorMax = new Vector2(1f, 1f);
         contentRect.pivot = new Vector2(0.5f, 1f);
@@ -1036,10 +1044,35 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
     private void ScrollDialogueToBottom()
     {
+        if (dialogueScrollRoutine != null)
+        {
+            StopCoroutine(dialogueScrollRoutine);
+        }
+
+        dialogueScrollRoutine = StartCoroutine(ScrollDialogueToBottomRoutine());
+    }
+
+    private IEnumerator ScrollDialogueToBottomRoutine()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        if (dialogueText != null && dialogueContentRect != null)
+        {
+            var textRect = dialogueText.rectTransform;
+            var preferredHeight = Mathf.Max(dialogueScroll.viewport.rect.height, dialogueText.preferredHeight + 24f);
+            textRect.sizeDelta = new Vector2(textRect.sizeDelta.x, preferredHeight);
+            dialogueContentRect.sizeDelta = new Vector2(dialogueContentRect.sizeDelta.x, preferredHeight);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(dialogueContentRect);
+        }
+
+        yield return null;
         Canvas.ForceUpdateCanvases();
         if (dialogueScroll != null)
         {
             dialogueScroll.verticalNormalizedPosition = 0f;
         }
+
+        dialogueScrollRoutine = null;
     }
 }

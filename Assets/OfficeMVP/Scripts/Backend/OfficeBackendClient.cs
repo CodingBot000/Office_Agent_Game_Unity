@@ -27,6 +27,7 @@ public sealed class OfficeNpcDto
     public string name;
     public string role;
     public OfficeNpcDynamicStateDto dynamic_state;
+    public string physical_state;
     public bool is_fallen;
 }
 

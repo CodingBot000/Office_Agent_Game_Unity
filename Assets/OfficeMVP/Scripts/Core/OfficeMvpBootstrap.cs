@@ -394,6 +394,7 @@ public sealed class OfficeMvpBootstrap : MonoBehaviour
         trigger.radius = 1.5f;
 
         character.AddComponent<OfficeNpcFallView>();
+        character.AddComponent<OfficeNpcFearShake>();
     }
 
     private string ResolveNpcLocation(string targetId)

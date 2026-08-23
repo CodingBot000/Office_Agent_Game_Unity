@@ -28,15 +28,7 @@ public sealed class OfficeNpcFallView : MonoBehaviour
                 originalRenderer.enabled = false;
             }
 
-            foreach (var collider in colliders)
-            {
-                collider.enabled = false;
-            }
-
-            if (interactable != null)
-            {
-                interactable.enabled = false;
-            }
+            // Keep colliders and InteractablePoint enabled so the player can inspect this NPC's items.
         }
         else
         {
@@ -51,15 +43,7 @@ public sealed class OfficeNpcFallView : MonoBehaviour
                 originalRenderer.enabled = true;
             }
 
-            foreach (var collider in colliders)
-            {
-                collider.enabled = true;
-            }
-
-            if (interactable != null)
-            {
-                interactable.enabled = true;
-            }
+            // Colliders and InteractablePoint remain enabled while the NPC is comatose.
         }
     }
 

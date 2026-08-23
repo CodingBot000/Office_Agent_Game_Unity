@@ -63,6 +63,8 @@ public sealed class OfficeCharacterEmotionLabel : MonoBehaviour
 {
     private string targetId;
     private Text emotionText;
+    private string currentEmotion = "neutral";
+    private string physicalState = "normal";
 
     public string TargetId => targetId;
 
@@ -80,8 +82,33 @@ public sealed class OfficeCharacterEmotionLabel : MonoBehaviour
             return;
         }
 
+        currentEmotion = emotion;
+        if (physicalState == "comatose")
+        {
+            return;
+        }
+
         emotionText.text = OfficeEmotionText.ToKorean(emotion);
         emotionText.color = OfficeEmotionText.ToColor(emotion);
+    }
+
+    public void SetPhysicalState(string state)
+    {
+        physicalState = state;
+        if (emotionText == null)
+        {
+            return;
+        }
+
+        if (physicalState == "comatose")
+        {
+            emotionText.text = "혼수상태";
+            emotionText.color = new Color(1f, 0.58f, 0.42f);
+            return;
+        }
+
+        emotionText.text = OfficeEmotionText.ToKorean(currentEmotion);
+        emotionText.color = OfficeEmotionText.ToColor(currentEmotion);
     }
 
     private void BuildLabel()
