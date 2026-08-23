@@ -53,7 +53,7 @@ public static class OfficeItemSpriteCatalog
 
     public static bool IsPersonItem(string objectId)
     {
-        return !string.IsNullOrEmpty(objectId) && PersonSheetPaths.ContainsKey(objectId);
+        return !string.IsNullOrEmpty(objectId) && PersonSpritePaths.ContainsKey(objectId);
     }
 
     private static Sprite CreateSingleSprite(Texture2D texture)
