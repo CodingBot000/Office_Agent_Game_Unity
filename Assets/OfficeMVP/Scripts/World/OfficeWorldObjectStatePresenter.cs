@@ -184,6 +184,9 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
 
             var renderer = carriedVisual.GetComponent<SpriteRenderer>();
             renderer.sprite = sprite;
+            // Keep an invisible launch anchor so throw animations still start from
+            // the player's position without rendering held items above the player.
+            renderer.enabled = false;
             renderer.sortingOrder = 60;
             carriedVisual.transform.SetParent(playerTransform, false);
             carriedVisual.transform.localPosition = new Vector3(
@@ -206,7 +209,7 @@ public sealed class OfficeWorldObjectStatePresenter : MonoBehaviour
             );
 
             carriedIndex++;
-            Debug.Log($"[OfficeMVP] Carried object displayed at player hand: {state.id}");
+            Debug.Log($"[OfficeMVP] Carried object launch anchor updated: {state.id}");
         }
 
         var staleObjectIds = new List<string>();

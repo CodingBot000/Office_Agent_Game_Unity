@@ -98,11 +98,11 @@ public sealed class OfficeBackendHealthUI : MonoBehaviour
                 background.color = new Color(0.34f, 0.25f, 0.04f, 0.94f);
                 break;
             case OfficeBackendHealthStatus.Connected:
-                statusText.text = $"Backend 연결됨  ·  {latency}ms";
+                statusText.text = $"서버 연결됨  ·  {latency}ms";
                 background.color = new Color(0.04f, 0.30f, 0.16f, 0.94f);
                 break;
             default:
-                statusText.text = "Backend 연결 끊김";
+                statusText.text = "서버 연결 끊김";
                 background.color = new Color(0.38f, 0.08f, 0.08f, 0.94f);
                 break;
         }

@@ -26,6 +26,8 @@ public sealed class OfficeInteractionUI : MonoBehaviour
     private Text dialogueStatus;
     private Text actionTitle;
     private Text actionStatus;
+    private GameObject evidenceActionPanel;
+    private Transform evidenceActionContent;
 
     private InputField dialogueInput;
     private Button dialogueSendButton;
@@ -38,11 +40,13 @@ public sealed class OfficeInteractionUI : MonoBehaviour
     private readonly Dictionary<string, string> dialogueDisplayNames = new Dictionary<string, string>();
     private readonly Dictionary<string, Button> dialogueTabButtons = new Dictionary<string, Button>();
     private readonly HashSet<string> dialogueStartedTargets = new HashSet<string>();
+    private readonly HashSet<string> observedEvidenceIds = new HashSet<string>();
 
     private string activeDialogueTargetId;
     private string activeDialogueTargetName;
     private string viewedDialogueTargetId;
     private bool dialogueRequestInFlight;
+    private bool evidenceSnapshotInitialized;
     private Coroutine dialogueWaitingAnimation;
 
     private void Start()
@@ -57,6 +61,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         interactionMenu.SetActive(false);
         dialoguePanel.SetActive(false);
         actionPanel.SetActive(false);
+        evidenceActionPanel.SetActive(false);
 
         if (backend != null)
         {
@@ -174,7 +179,18 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         dialogueClose.onClick.AddListener(CloseDialogue);
 
         dialogueScroll = CreateScrollView(dialoguePanel.transform, "DialogueScroll", new Vector2(0f, -10f), new Vector2(760f, 185f), out dialogueText);
-        dialogueStatus = CreateText(dialoguePanel.transform, "DialogueStatus", "", 16, new Color(0.72f, 0.80f, 0.90f), TextAnchor.MiddleLeft, new Vector2(760f, 24f), new Vector2(-20f, -120f));
+        dialogueText.supportRichText = true;
+        dialogueStatus = CreateText(dialoguePanel.transform, "DialogueStatus", "", 16, new Color(0.72f, 0.80f, 0.90f), TextAnchor.MiddleLeft, new Vector2(760f, 24f), new Vector2(-20f, -105f));
+
+        evidenceActionPanel = CreatePanel(
+            "EvidenceActionPanel",
+            dialoguePanel.transform,
+            new Vector2(760f, 34f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, -137f),
+            new Color(0.035f, 0.045f, 0.07f, 0.35f)
+        );
+        evidenceActionContent = evidenceActionPanel.transform;
 
         dialogueInput = CreateInputField(dialoguePanel.transform, "DialogueInput", "대화 내용을 입력하세요", new Vector2(575f, 42f), new Vector2(-85f, -170f));
         dialogueSendButton = CreateButton(dialoguePanel.transform, "DialogueSend", "전송", new Vector2(105f, 42f), new Vector2(265f, -170f));
@@ -226,7 +242,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         if (!dialogueStartedTargets.Contains(activeDialogueTargetId))
         {
             dialogueHistories[activeDialogueTargetId] =
-                $"< {activeDialogueTargetName} >\n입력한 내용은 서버로 전송됩니다.\n\n";
+                $"-- {activeDialogueTargetName} --\n입력한 내용은 서버로 전송됩니다.\n\n";
             dialogueStartedTargets.Add(activeDialogueTargetId);
         }
 
@@ -235,6 +251,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         dialoguePanel.SetActive(true);
         actionPanel.SetActive(false);
         SelectDialogueTab(activeDialogueTargetId);
+        RebuildEvidenceActions(backend == null ? null : backend.CurrentSnapshot);
     }
 
     private void BuildDialogueTabs()
@@ -291,7 +308,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
         if (!dialogueHistories.ContainsKey(targetId))
         {
-            dialogueHistories[targetId] = $"< {displayName} >\n아직 대화 기록이 없습니다.\n\n";
+            dialogueHistories[targetId] = $"-- {displayName} --\n아직 대화 기록이 없습니다.\n\n";
         }
     }
 
@@ -324,6 +341,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
         UpdateDialogueTabVisuals();
         UpdateDialogueInputAvailability(true);
+        RebuildEvidenceActions(backend == null ? null : backend.CurrentSnapshot);
         ScrollDialogueToBottom();
     }
 
@@ -415,6 +433,19 @@ public sealed class OfficeInteractionUI : MonoBehaviour
     {
         var displayName = GetDialogueDisplayName(targetId);
         EnsureDialogueHistory(targetId, displayName);
+        dialogueHistories[targetId] += OfficeDisplayText.EscapeRichText(line);
+
+        if (viewedDialogueTargetId == targetId)
+        {
+            dialogueText.text = dialogueHistories[targetId];
+            ScrollDialogueToBottom();
+        }
+    }
+
+    private void AppendRichDialogueHistory(string targetId, string line)
+    {
+        var displayName = GetDialogueDisplayName(targetId);
+        EnsureDialogueHistory(targetId, displayName);
         dialogueHistories[targetId] += line;
 
         if (viewedDialogueTargetId == targetId)
@@ -444,6 +475,10 @@ public sealed class OfficeInteractionUI : MonoBehaviour
             dialogueScrollRoutine = null;
         }
         dialoguePanel.SetActive(false);
+        if (evidenceActionPanel != null)
+        {
+            evidenceActionPanel.SetActive(false);
+        }
         if (currentTarget != null)
         {
             interactionMenu.SetActive(true);
@@ -512,26 +547,51 @@ public sealed class OfficeInteractionUI : MonoBehaviour
             return;
         }
 
+        SubmitDialogueMessage(text, text);
+    }
+
+    private void PresentEvidence(OfficeEvidenceDto evidence)
+    {
+        if (evidence == null || !evidence.discovered || !CanTalkToViewedTarget())
+        {
+            return;
+        }
+
+        var displayText = $"{evidence.title} 증거를 제시했습니다.";
+        var requestText = $"{evidence.title} 증거를 {activeDialogueTargetName}에게 제시해줘.";
+        SubmitDialogueMessage(requestText, displayText);
+    }
+
+    private void SubmitDialogueMessage(string requestText, string displayText)
+    {
         var targetId = activeDialogueTargetId;
         var targetName = activeDialogueTargetName;
-        AppendDialogueHistory(targetId, $"Player: {text}\n");
+        AppendDialogueHistory(targetId, $"Player: {displayText}\n");
 
         dialogueRequestInFlight = true;
         dialogueInput.text = "";
+        if (evidenceActionPanel != null)
+        {
+            evidenceActionPanel.SetActive(false);
+        }
         StartDialogueWaitingAnimation();
         UpdateDialogueInputAvailability(false);
         ScrollDialogueToBottom();
 
         backend.SubmitDialogue(
-            text,
+            requestText,
             targetId,
             response =>
             {
                 StopDialogueWaitingAnimation();
                 dialogueRequestInFlight = false;
 
-                var message = string.IsNullOrEmpty(response.message) ? "(응답 없음)" : response.message;
-                AppendDialogueHistory(targetId, $"{targetName}: {message}\n");
+                var isEvidenceRequest = string.Equals(response.classified_action, "request_evidence", StringComparison.OrdinalIgnoreCase);
+                if (!isEvidenceRequest)
+                {
+                    var message = string.IsNullOrEmpty(response.message) ? "(응답 없음)" : response.message;
+                    AppendDialogueHistory(targetId, $"{targetName}: {message}\n");
+                }
                 if (response.blocked && !string.IsNullOrEmpty(response.alert))
                 {
                     AppendDialogueHistory(targetId, $"[차단됨] {response.alert}\n");
@@ -539,6 +599,7 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
                 dialogueStatus.text = response.blocked
                     ? "Backend가 대화를 차단했습니다."
+                    : isEvidenceRequest ? "증거 확보 완료"
                     : "응답 수신 완료";
 
                 UpdateDialogueInputAvailability(false);
@@ -679,10 +740,116 @@ public sealed class OfficeInteractionUI : MonoBehaviour
 
     private void OnBackendSnapshotUpdated(OfficeSnapshotDto snapshot)
     {
+        ObserveEvidenceSnapshot(snapshot);
+        RebuildEvidenceActions(snapshot);
+
         if (actionPanel != null && actionPanel.activeSelf && currentTarget != null)
         {
             RebuildActionList();
         }
+    }
+
+    private void ObserveEvidenceSnapshot(OfficeSnapshotDto snapshot)
+    {
+        if (snapshot == null || snapshot.evidences == null)
+        {
+            return;
+        }
+
+        var newlyDiscovered = new List<OfficeEvidenceDto>();
+        foreach (var evidence in snapshot.evidences)
+        {
+            if (evidence == null || !evidence.discovered || string.IsNullOrEmpty(evidence.id))
+            {
+                continue;
+            }
+
+            if (evidenceSnapshotInitialized && observedEvidenceIds.Add(evidence.id))
+            {
+                newlyDiscovered.Add(evidence);
+            }
+            else
+            {
+                observedEvidenceIds.Add(evidence.id);
+            }
+        }
+
+        evidenceSnapshotInitialized = true;
+        foreach (var evidence in newlyDiscovered)
+        {
+            var targetId = string.IsNullOrEmpty(evidence.source_npc_id) ? activeDialogueTargetId : evidence.source_npc_id;
+            var targetName = GetDialogueDisplayName(targetId);
+            EnsureDialogueHistory(targetId, targetName);
+            var evidenceTitle = OfficeDisplayText.EscapeRichText(evidence.title);
+            var evidenceContent = OfficeDisplayText.EscapeRichText(evidence.content);
+            AppendRichDialogueHistory(
+                targetId,
+                $"<color=#FF5D6C><b>증거를 확보했습니다.</b>\n{evidenceTitle}\n{evidenceContent}</color>\n\n"
+            );
+        }
+
+        if (newlyDiscovered.Count > 0 && !string.IsNullOrEmpty(viewedDialogueTargetId))
+        {
+            RenderViewedDialogue();
+        }
+    }
+
+    private void RebuildEvidenceActions(OfficeSnapshotDto snapshot)
+    {
+        if (evidenceActionPanel == null || evidenceActionContent == null)
+        {
+            return;
+        }
+
+        for (var index = evidenceActionContent.childCount - 1; index >= 0; index--)
+        {
+            Destroy(evidenceActionContent.GetChild(index).gameObject);
+        }
+
+        var canPresent = dialoguePanel != null
+            && dialoguePanel.activeSelf
+            && CanTalkToViewedTarget()
+            && snapshot != null
+            && snapshot.evidences != null;
+        if (!canPresent)
+        {
+            evidenceActionPanel.SetActive(false);
+            return;
+        }
+
+        var discovered = new List<OfficeEvidenceDto>();
+        foreach (var evidence in snapshot.evidences)
+        {
+            if (evidence != null && evidence.discovered)
+            {
+                discovered.Add(evidence);
+            }
+        }
+
+        if (discovered.Count == 0)
+        {
+            evidenceActionPanel.SetActive(false);
+            return;
+        }
+
+        var buttonWidth = discovered.Count == 1 ? 300f : 235f;
+        var spacing = 10f;
+        for (var index = 0; index < discovered.Count; index++)
+        {
+            var evidence = discovered[index];
+            var x = (index - (discovered.Count - 1) * 0.5f) * (buttonWidth + spacing);
+            var button = CreateButton(
+                evidenceActionContent,
+                $"PresentEvidence_{evidence.id}",
+                $"증거 제시하기 · {evidence.title}",
+                new Vector2(buttonWidth, 30f),
+                new Vector2(x, 0f)
+            );
+            var capturedEvidence = evidence;
+            button.onClick.AddListener(() => PresentEvidence(capturedEvidence));
+        }
+
+        evidenceActionPanel.SetActive(true);
     }
 
     private void OnLocationSyncStarted(string location)
@@ -993,7 +1160,13 @@ public sealed class OfficeInteractionUI : MonoBehaviour
         contentRect.sizeDelta = new Vector2(0f, 0f);
         contentRect.anchoredPosition = Vector2.zero;
 
-        contentText = CreateText(content.transform, "Text", "", 18, new Color(0.92f, 0.94f, 0.98f), TextAnchor.UpperLeft, new Vector2(size.x - 30f, 0f), new Vector2(0f, -55f));
+        contentText = CreateText(content.transform, "Text", "", 18, new Color(0.92f, 0.94f, 0.98f), TextAnchor.UpperLeft, new Vector2(size.x - 30f, 0f), new Vector2(0f, -15f));
+        var contentTextRect = contentText.rectTransform;
+        contentTextRect.anchorMin = new Vector2(0f, 1f);
+        contentTextRect.anchorMax = new Vector2(1f, 1f);
+        contentTextRect.pivot = new Vector2(0.5f, 1f);
+        contentTextRect.anchoredPosition = new Vector2(0f, -15f);
+        contentTextRect.sizeDelta = new Vector2(-30f, 0f);
         contentText.horizontalOverflow = HorizontalWrapMode.Wrap;
         contentText.verticalOverflow = VerticalWrapMode.Overflow;
         var fitter = contentText.gameObject.AddComponent<ContentSizeFitter>();

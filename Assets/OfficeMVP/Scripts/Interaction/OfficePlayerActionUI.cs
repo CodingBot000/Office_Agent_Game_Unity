@@ -318,7 +318,7 @@ public sealed class OfficePlayerActionUI : MonoBehaviour
                     continue;
                 }
 
-                var label = $"{npc.name} · {npc.role}\n{ResolveNpcLocation(action.target_id)} · {npc.dynamic_state.emotion}";
+            var label = $"{npc.name} · {npc.role}\n{ResolveNpcLocation(action.target_id)} · {OfficeEmotionText.ToKorean(npc.dynamic_state.emotion)}";
                 var button = CreateButton(menuContent, $"ThrowTarget_{action.target_id}", label, new Vector2(500f, 62f), Vector2.zero);
                 button.interactable = action.enabled;
                 var capturedAction = action;

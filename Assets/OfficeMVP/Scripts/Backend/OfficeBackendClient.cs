@@ -64,6 +64,17 @@ public sealed class OfficePlayerInventoryDto
 }
 
 [Serializable]
+public sealed class OfficeEvidenceDto
+{
+    public string id;
+    public string title;
+    public string summary;
+    public string content;
+    public string source_npc_id;
+    public bool discovered;
+}
+
+[Serializable]
 public sealed class OfficeAvailableGameActionDto
 {
     public string id;
@@ -87,6 +98,7 @@ public sealed class OfficeSnapshotDto
     public string incident_status;
     public OfficeNpcDto[] npcs;
     public OfficeWorldObjectDto[] world_objects;
+    public OfficeEvidenceDto[] evidences;
     public OfficeAvailableGameActionDto[] available_game_actions;
     public OfficePlayerInventoryDto player_inventory;
 }
@@ -144,6 +156,8 @@ public sealed class OfficeGameActionRequestPayload
 
 public sealed class OfficeBackendClient : MonoBehaviour
 {
+    private const float HealthCheckIntervalSeconds = 30f;
+
     public static OfficeBackendClient Instance { get; private set; }
 
     [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
@@ -269,7 +283,7 @@ public sealed class OfficeBackendClient : MonoBehaviour
         {
             yield return CheckEndpointHealthRoutine(OfficeBackendEndpoint.Local, localBaseUrl);
             yield return CheckEndpointHealthRoutine(OfficeBackendEndpoint.Remote, remoteBaseUrl);
-            yield return new WaitForSecondsRealtime(2f);
+            yield return new WaitForSecondsRealtime(HealthCheckIntervalSeconds);
         }
     }
 
@@ -278,7 +292,7 @@ public sealed class OfficeBackendClient : MonoBehaviour
         while (selectedEndpoint != null && !string.IsNullOrEmpty(baseUrl))
         {
             yield return CheckHealthRoutine();
-            yield return new WaitForSecondsRealtime(2f);
+            yield return new WaitForSecondsRealtime(HealthCheckIntervalSeconds);
         }
     }
 

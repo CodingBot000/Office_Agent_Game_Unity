@@ -12,7 +12,8 @@ public sealed class OfficeInventoryUI : MonoBehaviour
     private enum InventoryTab
     {
         Status,
-        OwnedItems
+        OwnedItems,
+        Evidence
     }
 
     private Canvas canvas;
@@ -24,6 +25,7 @@ public sealed class OfficeInventoryUI : MonoBehaviour
     private Button toggleButton;
     private Button statusTabButton;
     private Button ownedItemsTabButton;
+    private Button evidenceTabButton;
 
     private InventoryTab selectedTab = InventoryTab.Status;
     private Coroutine panelAnimation;
@@ -183,12 +185,15 @@ public sealed class OfficeInventoryUI : MonoBehaviour
         var closeButton = CreateButton(panel.transform, "InventoryClose", "닫기", new Vector2(78f, 34f), new Vector2(165f, 205f));
         closeButton.onClick.AddListener(TogglePanel);
 
-        statusTabButton = CreateButton(panel.transform, "StatusTab", "상태", new Vector2(175f, 44f), new Vector2(-105f, 160f));
-        ownedItemsTabButton = CreateButton(panel.transform, "OwnedItemsTab", "소유 물건", new Vector2(175f, 44f), new Vector2(85f, 160f));
+        statusTabButton = CreateButton(panel.transform, "StatusTab", "상태", new Vector2(120f, 44f), new Vector2(-140f, 160f));
+        ownedItemsTabButton = CreateButton(panel.transform, "OwnedItemsTab", "소유 물건", new Vector2(120f, 44f), new Vector2(0f, 160f));
+        evidenceTabButton = CreateButton(panel.transform, "EvidenceTab", "증거", new Vector2(120f, 44f), new Vector2(140f, 160f));
         ConfigureTabHitArea(statusTabButton);
         ConfigureTabHitArea(ownedItemsTabButton);
+        ConfigureTabHitArea(evidenceTabButton);
         statusTabButton.onClick.AddListener(() => SelectTab(InventoryTab.Status));
         ownedItemsTabButton.onClick.AddListener(() => SelectTab(InventoryTab.OwnedItems));
+        evidenceTabButton.onClick.AddListener(() => SelectTab(InventoryTab.Evidence));
 
         CreateScrollView(panel.transform, "InventoryScroll", new Vector2(0f, -15f), new Vector2(390f, 340f), out content);
         statusText = CreateText(panel.transform, "InventoryStatus", "서버 연결 대기 중...", 15, new Color(0.72f, 0.80f, 0.90f), TextAnchor.MiddleLeft, new Vector2(390f, 28f), new Vector2(-10f, -215f));
@@ -203,7 +208,7 @@ public sealed class OfficeInventoryUI : MonoBehaviour
         }
 
         var rect = button.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(175f, 44f);
+        rect.sizeDelta = new Vector2(120f, 44f);
 
         var image = button.GetComponent<Image>();
         image.raycastTarget = true;
@@ -217,6 +222,7 @@ public sealed class OfficeInventoryUI : MonoBehaviour
     {
         SetTabColor(statusTabButton, selectedTab == InventoryTab.Status);
         SetTabColor(ownedItemsTabButton, selectedTab == InventoryTab.OwnedItems);
+        SetTabColor(evidenceTabButton, selectedTab == InventoryTab.Evidence);
     }
 
     private void SetTabColor(Button button, bool selected)
@@ -262,9 +268,13 @@ public sealed class OfficeInventoryUI : MonoBehaviour
         {
             RebuildStatusList(snapshot);
         }
-        else
+        else if (selectedTab == InventoryTab.OwnedItems)
         {
             RebuildOwnedItemsList(snapshot);
+        }
+        else
+        {
+            RebuildEvidenceList(snapshot);
         }
 
         statusText.text = $"턴 {snapshot.turn}  ·  서버 동기화 완료";
@@ -357,6 +367,42 @@ public sealed class OfficeInventoryUI : MonoBehaviour
             var condition = ResolveCondition(state.condition);
             var location = ResolveLocation(state.location);
             AddRow($"소유자: {ownerName}\n물품: {OfficeDisplayText.FormatItemNameRich(state.name)}\n위치: {location}  |  상태: {condition}\n현재 소지자: {holderName}", Color.white, 82f);
+        }
+    }
+
+    private void RebuildEvidenceList(OfficeSnapshotDto snapshot)
+    {
+        var evidences = snapshot.evidences ?? Array.Empty<OfficeEvidenceDto>();
+        var discoveredCount = 0;
+        foreach (var evidence in evidences)
+        {
+            if (evidence != null && evidence.discovered)
+            {
+                discoveredCount++;
+            }
+        }
+
+        AddSectionHeader($"증거 목록 ({discoveredCount}/{evidences.Length})");
+        if (evidences.Length == 0)
+        {
+            AddRow("서버에서 증거 정보를 받지 못했습니다.", new Color(0.92f, 0.65f, 0.42f), 82f);
+            return;
+        }
+
+        foreach (var evidence in evidences)
+        {
+            if (evidence == null)
+            {
+                continue;
+            }
+
+            var title = string.IsNullOrEmpty(evidence.title) ? evidence.id : evidence.title;
+            var body = evidence.discovered
+                ? string.IsNullOrEmpty(evidence.content) ? evidence.summary : evidence.content
+                : evidence.summary;
+            var state = evidence.discovered ? "✓ 확보됨" : "— 미확보";
+            var color = evidence.discovered ? Color.white : new Color(0.62f, 0.66f, 0.74f);
+            AddRow($"{state}\n{title}\n{body}", color, 116f);
         }
     }
 

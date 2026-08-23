@@ -8,6 +8,7 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
         public string objectId;
         public string targetId;
         public Sprite sprite;
+        public Sprite[] runningFrames;
         public Vector3 launchPosition;
         public Vector3 launchScale;
         public Transform targetTransform;
@@ -67,14 +68,26 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
             return false;
         }
 
+        var launchScale = heldObject.transform.lossyScale;
+        var runningFrames = (Sprite[])null;
+        if (OfficeItemSpriteCatalog.IsPersonItem(action.object_id))
+        {
+            // Person items should fly at the same scale as the character they represent,
+            // rather than inheriting the hidden held-item anchor scale.
+            launchScale = targetPoint.transform.lossyScale;
+            var movingRight = targetPoint.transform.position.x >= heldObject.transform.position.x;
+            runningFrames = OfficeItemSpriteCatalog.LoadPersonRunFrames(action.object_id, movingRight);
+        }
+
         pendingThrow = new PendingThrow
         {
             actionId = action.id,
             objectId = action.object_id,
             targetId = action.target_id,
             sprite = heldRenderer.sprite,
+            runningFrames = runningFrames,
             launchPosition = heldObject.transform.position,
-            launchScale = heldObject.transform.lossyScale,
+            launchScale = launchScale,
             targetTransform = targetPoint.transform,
             fallView = targetPoint.GetComponent<OfficeNpcFallView>(),
             shouldFall = IsPhysicalAssault(action.object_id),
@@ -104,6 +117,7 @@ public sealed class OfficeThrowCoordinator : MonoBehaviour
         var projectile = projectileObject.AddComponent<OfficeThrownObjectProjectile>();
         projectile.Configure(
             pendingThrow.sprite,
+            pendingThrow.runningFrames,
             pendingThrow.launchPosition,
             pendingThrow.launchScale,
             pendingThrow.targetTransform,

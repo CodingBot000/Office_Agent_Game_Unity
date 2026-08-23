@@ -33,8 +33,14 @@ public static class OfficeEmotionText
                 return "지지받음";
             case "attentive":
                 return "주의 깊음";
+            case "uneasy":
+                return "불안";
+            case "focused":
+                return "집중";
+            case "concerned":
+                return "우려";
             default:
-                return string.IsNullOrEmpty(emotion) ? "알 수 없음" : emotion;
+                return "알 수 없음";
         }
     }
 
