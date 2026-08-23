@@ -23,6 +23,12 @@ public sealed class PlayerMovement2D : MonoBehaviour
 
     private void Update()
     {
+        if (OfficeBackendClient.Instance != null && !OfficeBackendClient.Instance.IsReady)
+        {
+            input = Vector2.zero;
+            return;
+        }
+
         if (IsTextInputFocused())
         {
             input = Vector2.zero;

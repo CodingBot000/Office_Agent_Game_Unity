@@ -33,6 +33,10 @@ public sealed class OfficeMvpBootstrap : MonoBehaviour
     private const float FurnitureScale = 2f;
     private const float CharacterScale = 2f;
 
+    [Header("Backend Connection")]
+    [SerializeField] private string localBackendUrl = "http://127.0.0.1:8000";
+    [SerializeField] private string remoteBackendUrl = "";
+
     private void Awake()
     {
         Application.targetFrameRate = 60;
@@ -242,7 +246,8 @@ public sealed class OfficeMvpBootstrap : MonoBehaviour
     {
         var backendObject = new GameObject("BackendClient");
         backendObject.transform.SetParent(transform, false);
-        backendObject.AddComponent<OfficeBackendClient>();
+        var backend = backendObject.AddComponent<OfficeBackendClient>();
+        backend.ConfigureEndpoints(localBackendUrl, remoteBackendUrl);
     }
 
     private void BuildWorldObjectPresenter()
@@ -254,6 +259,7 @@ public sealed class OfficeMvpBootstrap : MonoBehaviour
     private void BuildInteractionUI()
     {
         var uiObject = new GameObject("InteractionUI");
+        uiObject.AddComponent<OfficeBackendConnectionUI>();
         uiObject.AddComponent<OfficeInteractionUI>();
         uiObject.AddComponent<OfficePlayerActionUI>();
         uiObject.AddComponent<OfficeInventoryUI>();

@@ -11,6 +11,12 @@ public enum OfficeBackendHealthStatus
     Disconnected
 }
 
+public enum OfficeBackendEndpoint
+{
+    Local,
+    Remote
+}
+
 [Serializable]
 public sealed class OfficeNpcDynamicStateDto
 {
@@ -141,6 +147,8 @@ public sealed class OfficeBackendClient : MonoBehaviour
     public static OfficeBackendClient Instance { get; private set; }
 
     [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
+    [SerializeField] private string localBaseUrl = "http://127.0.0.1:8000";
+    [SerializeField] private string remoteBaseUrl = "";
     [SerializeField] private bool autoStartSession = true;
 
     public string SessionId { get; private set; }
@@ -153,12 +161,23 @@ public sealed class OfficeBackendClient : MonoBehaviour
     public bool IsLocationSyncing { get; private set; }
     public bool IsRequestInFlight => requestInFlight;
     public bool IsReady => !string.IsNullOrEmpty(SessionId);
+    public bool IsConnectionSelectionOpen => !IsReady;
+    public string LocalBaseUrl => localBaseUrl;
+    public string RemoteBaseUrl => remoteBaseUrl;
     public OfficeBackendHealthStatus HealthStatus { get; private set; } = OfficeBackendHealthStatus.Disconnected;
     public long HealthLatencyMilliseconds { get; private set; }
     public event Action<OfficeBackendHealthStatus, long> HealthStatusChanged;
+    public event Action<OfficeBackendEndpoint, OfficeBackendHealthStatus, long> EndpointHealthChanged;
 
     private bool requestInFlight;
     private int moveRequestVersion;
+    private bool connectionSelectionStarted;
+    private bool selectedEndpointHealthLoopStarted;
+    private OfficeBackendEndpoint? selectedEndpoint;
+    private OfficeBackendHealthStatus localEndpointHealth = OfficeBackendHealthStatus.Disconnected;
+    private OfficeBackendHealthStatus remoteEndpointHealth = OfficeBackendHealthStatus.Disconnected;
+    private long localEndpointLatencyMilliseconds;
+    private long remoteEndpointLatencyMilliseconds;
 
     private void Awake()
     {
@@ -173,20 +192,117 @@ public sealed class OfficeBackendClient : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(HealthCheckLoop());
+        if (autoStartSession)
+        {
+            BeginConnectionSelection();
+        }
+    }
+
+    public void ConfigureEndpoints(string localUrl, string remoteUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(localUrl))
+        {
+            localBaseUrl = localUrl.Trim().TrimEnd('/');
+        }
+
+        remoteBaseUrl = string.IsNullOrWhiteSpace(remoteUrl) ? "" : remoteUrl.Trim().TrimEnd('/');
+        if (selectedEndpoint == null)
+        {
+            baseUrl = localBaseUrl;
+        }
+    }
+
+    public void BeginConnectionSelection()
+    {
+        if (connectionSelectionStarted || IsReady)
+        {
+            return;
+        }
+
+        connectionSelectionStarted = true;
+        StartCoroutine(EndpointHealthLoop());
+    }
+
+    public OfficeBackendHealthStatus GetEndpointHealth(OfficeBackendEndpoint endpoint)
+    {
+        return endpoint == OfficeBackendEndpoint.Local ? localEndpointHealth : remoteEndpointHealth;
+    }
+
+    public long GetEndpointLatency(OfficeBackendEndpoint endpoint)
+    {
+        return endpoint == OfficeBackendEndpoint.Local
+            ? localEndpointLatencyMilliseconds
+            : remoteEndpointLatencyMilliseconds;
+    }
+
+    public bool SelectEndpoint(OfficeBackendEndpoint endpoint)
+    {
+        var url = endpoint == OfficeBackendEndpoint.Local ? localBaseUrl : remoteBaseUrl;
+        if (string.IsNullOrWhiteSpace(url) || GetEndpointHealth(endpoint) != OfficeBackendHealthStatus.Connected || IsReady || requestInFlight)
+        {
+            return false;
+        }
+
+        selectedEndpoint = endpoint;
+        baseUrl = url;
+        connectionSelectionStarted = false;
+        if (!selectedEndpointHealthLoopStarted)
+        {
+            selectedEndpointHealthLoopStarted = true;
+            StartCoroutine(SelectedHealthCheckLoop());
+        }
 
         if (autoStartSession)
         {
             StartCoroutine(CreateSessionRoutine());
         }
+
+        return true;
     }
 
-    private IEnumerator HealthCheckLoop()
+    private IEnumerator EndpointHealthLoop()
     {
-        while (true)
+        while (connectionSelectionStarted && !IsReady)
+        {
+            yield return CheckEndpointHealthRoutine(OfficeBackendEndpoint.Local, localBaseUrl);
+            yield return CheckEndpointHealthRoutine(OfficeBackendEndpoint.Remote, remoteBaseUrl);
+            yield return new WaitForSecondsRealtime(2f);
+        }
+    }
+
+    private IEnumerator SelectedHealthCheckLoop()
+    {
+        while (selectedEndpoint != null && !string.IsNullOrEmpty(baseUrl))
         {
             yield return CheckHealthRoutine();
             yield return new WaitForSecondsRealtime(2f);
+        }
+    }
+
+    private IEnumerator CheckEndpointHealthRoutine(OfficeBackendEndpoint endpoint, string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            SetEndpointHealth(endpoint, OfficeBackendHealthStatus.Disconnected, 0L);
+            yield break;
+        }
+
+        SetEndpointHealth(endpoint, OfficeBackendHealthStatus.Checking, 0L);
+        var startedAt = Time.realtimeSinceStartup;
+        using (var request = UnityWebRequest.Get($"{url}/health"))
+        {
+            request.timeout = 3;
+            yield return request.SendWebRequest();
+
+            var latency = (long)Mathf.Max(0f, (Time.realtimeSinceStartup - startedAt) * 1000f);
+            var healthy = request.result == UnityWebRequest.Result.Success
+                && request.responseCode >= 200
+                && request.responseCode < 300;
+            SetEndpointHealth(
+                endpoint,
+                healthy ? OfficeBackendHealthStatus.Connected : OfficeBackendHealthStatus.Disconnected,
+                latency
+            );
         }
     }
 
@@ -217,6 +333,26 @@ public sealed class OfficeBackendClient : MonoBehaviour
         HealthStatus = status;
         HealthLatencyMilliseconds = latency;
         HealthStatusChanged?.Invoke(status, latency);
+    }
+
+    private void SetEndpointHealth(OfficeBackendEndpoint endpoint, OfficeBackendHealthStatus status, long latency)
+    {
+        if (endpoint == OfficeBackendEndpoint.Local)
+        {
+            localEndpointHealth = status;
+            localEndpointLatencyMilliseconds = latency;
+        }
+        else
+        {
+            remoteEndpointHealth = status;
+            remoteEndpointLatencyMilliseconds = latency;
+        }
+
+        EndpointHealthChanged?.Invoke(endpoint, status, latency);
+        if (selectedEndpoint == endpoint)
+        {
+            SetHealthStatus(status, latency);
+        }
     }
 
     public void NotifyInteraction(InteractablePoint point)

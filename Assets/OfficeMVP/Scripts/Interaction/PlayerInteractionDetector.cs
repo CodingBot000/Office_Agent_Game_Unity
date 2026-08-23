@@ -18,6 +18,12 @@ public sealed class PlayerInteractionDetector : MonoBehaviour
 
     private void Update()
     {
+        if (OfficeBackendClient.Instance != null && !OfficeBackendClient.Instance.IsReady)
+        {
+            current = null;
+            return;
+        }
+
         RefreshCurrent();
 
         var keyboard = Keyboard.current;
